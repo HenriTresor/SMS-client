@@ -28,7 +28,7 @@ const Input: React.FC<InputProps> = ({
     <View style={[styles.container, style]}>
       {label && <Text style={styles.label}>{label}</Text>}
       <TextInput
-        style={[styles.input, error && styles.inputError]}
+        style={[styles.input, !!error && styles.inputError]}
         placeholder={placeholder}
         value={value}
         onChangeText={onChangeText}
@@ -37,7 +37,7 @@ const Input: React.FC<InputProps> = ({
         autoCapitalize={autoCapitalize}
         placeholderTextColor="#9ca3af"
       />
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 };

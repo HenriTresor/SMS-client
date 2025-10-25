@@ -30,7 +30,7 @@ export class AuthService {
     await prisma.device.create({
       data: {
         deviceId: dto.deviceId,
-        pushToken: dto.pushToken,
+        pushToken: dto.pushToken!,
         userId: user.id,
       },
     });
