@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import api from '../src/services/api';
@@ -18,12 +19,9 @@ type RootStackParamList = {
 type DashboardScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Dashboard'>;
 type DashboardScreenRouteProp = RouteProp<RootStackParamList, 'Dashboard'>;
 
-interface Props {
-  navigation: DashboardScreenNavigationProp;
-  route: DashboardScreenRouteProp;
-}
-
-const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
+const DashboardScreen: React.FC = () => {
+  const navigation = useNavigation<DashboardScreenNavigationProp>();
+  const route = useRoute<DashboardScreenRouteProp>();
   const { user, token } = route.params;
   const [balance, setBalance] = useState(user.balance);
   const [history, setHistory] = useState([]);

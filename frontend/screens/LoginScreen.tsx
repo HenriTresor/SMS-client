@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Alert, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RouteProp } from '@react-navigation/native';
 import api, { getDeviceId, setAuthToken, getPushToken } from '../src/services/api';
 import { API_ENDPOINTS } from '../src/constants';
 import Button from '../src/components/Button';
@@ -14,13 +14,10 @@ type RootStackParamList = {
   Dashboard: { user: any; token: string };
 };
 
-type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
+type NavigationProp = StackNavigationProp<RootStackParamList>;
 
-interface Props {
-  navigation: LoginScreenNavigationProp;
-}
-
-const LoginScreen: React.FC<Props> = ({ navigation }) => {
+const LoginScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Alert, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import api from '../src/services/api';
 import { API_ENDPOINTS } from '../src/constants';
@@ -12,13 +13,10 @@ type RootStackParamList = {
   Dashboard: { user: any; token: string };
 };
 
-type DepositScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Deposit'>;
+type NavigationProp = StackNavigationProp<RootStackParamList>;
 
-interface Props {
-  navigation: DepositScreenNavigationProp;
-}
-
-const DepositScreen: React.FC<Props> = ({ navigation }) => {
+const DepositScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
