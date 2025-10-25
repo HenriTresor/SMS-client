@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import api from '../src/services/api';
+import { API_ENDPOINTS } from '../src/constants';
+import Button from '../src/components/Button';
+import Card from '../src/components/Card';
 
 type RootStackParamList = {
   Register: undefined;
@@ -32,7 +35,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const fetchBalance = async () => {
     try {
-      const response = await api.get('/savings/balance');
+      const response = await api.get(API_ENDPOINTS.BALANCE);
       setBalance(response.data.balance);
     } catch (error) {
       console.error(error);
@@ -41,7 +44,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
 
   const fetchHistory = async () => {
     try {
-      const response = await api.get('/savings/history');
+      const response = await api.get(API_ENDPOINTS.HISTORY);
       setHistory(response.data.history);
     } catch (error) {
       console.error(error);
@@ -54,22 +57,26 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
         <Text style={styles.welcomeText}>Welcome, {user.email}</Text>
       </View>
 
-      <View style={styles.balanceCard}>
+      <Card style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Current Balance</Text>
         <Text style={styles.balanceAmount}>${balance.toFixed(2)}</Text>
-      </View>
+      </Card>
 
       <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => navigation.navigate('Deposit')}>
-          <Text style={styles.actionButtonText}>Deposit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, styles.withdrawButton]} onPress={() => navigation.navigate('Withdraw')}>
-          <Text style={styles.actionButtonText}>Withdraw</Text>
-        </TouchableOpacity>
+        <Button
+          title="Deposit"
+          onPress={() => navigation.navigate('Deposit')}
+          style={styles.actionButton}
+        />
+        <Button
+          title="Withdraw"
+          onPress={() => navigation.navigate('Withdraw')}
+          variant="danger"
+          style={styles.actionButton}
+        />
       </View>
 
-      <View style={styles.historyContainer}>
-        <Text style={styles.historyTitle}>Transaction History</Text>
+      <Card title="Transaction History" style={styles.historyContainer}>
         <FlatList
           data={history}
           keyExtractor={(item: any) => item.id}
@@ -82,7 +89,7 @@ const DashboardScreen: React.FC<Props> = ({ navigation, route }) => {
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>No transactions yet</Text>}
         />
-      </View>
+      </Card>
     </View>
   );
 };
@@ -102,16 +109,8 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   balanceCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
     alignItems: 'center',
+    marginBottom: 20,
   },
   balanceLabel: {
     fontSize: 16,
@@ -129,58 +128,39 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   actionButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 16,
     flex: 1,
     marginHorizontal: 5,
-    alignItems: 'center',
-  },
-  withdrawButton: {
-    backgroundColor: '#ef4444',
-  },
-  actionButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
   },
   historyContainer: {
     flex: 1,
   },
-  historyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 16,
-  },
   transactionItem: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
   transactionType: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1f2937',
     textTransform: 'capitalize',
+    flex: 1,
   },
   transactionAmount: {
     fontSize: 16,
     fontWeight: '600',
     color: '#10b981',
+    flex: 1,
+    textAlign: 'center',
   },
   transactionDate: {
     fontSize: 14,
     color: '#6b7280',
+    flex: 1,
+    textAlign: 'right',
   },
   emptyText: {
     textAlign: 'center',
