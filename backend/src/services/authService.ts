@@ -1,0 +1,58 @@
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import { PrismaClient } from '@prisma/client';
+import { RegisterDto, LoginDto } from '../dtos';
+
+const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+
+export class AuthService {
+  static hashPassword(password: string): string {
+    return crypto.createHash('sha512').update(password).digest('hex');
+  }
+
+  static verifyPassword(password: string, hash: string): boolean {
+    return this.hashPassword(password) === hash;
+  }
+
+  static generateToken(userId: string): string {
+    return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '1h' });
+  }
+
+  static async register(dto: RegisterDto) {
+    const hashedPassword = this.hashPassword(dto.password);
+    const user = await prisma.user.create({
+      data: {
+        email: dto.email,
+        password: hashedPassword,
+      },
+    });
+    await prisma.device.create({
+      data: {
+        deviceId: dto.deviceId,
+        userId: user.id,
+      },
+    });
+    return user;
+  }
+
+  static async login(dto: LoginDto) {
+    const user = await prisma.user.findUnique({
+      where: { email: dto.email },
+      include: { devices: true },
+    });
+    if (!user) throw new Error('User not found');
+
+    if (!this.verifyPassword(dto.password, user.password)) {
+      throw new Error('Invalid password');
+    }
+
+    const device = user.devices.find(d => d.deviceId === dto.deviceId);
+    if (!device) throw new Error('Device not registered');
+
+    if (!device.isVerified) throw new Error('Device not verified');
+
+    const token = this.generateToken(user.id);
+    return { token, user };
+  }
+}
