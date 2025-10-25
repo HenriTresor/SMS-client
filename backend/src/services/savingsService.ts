@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { NotificationService } from './notificationService';
 
 const prisma = new PrismaClient();
 
@@ -25,6 +26,10 @@ export class SavingsService {
         userId,
       },
     });
+
+    // Send notification
+    await NotificationService.sendToUser(userId, 'Deposit Confirmed', `$${amount} has been deposited to your account.`);
+
     return user.balance;
   }
 
@@ -44,6 +49,15 @@ export class SavingsService {
         userId,
       },
     });
+
+    // Send withdrawal notification
+    await NotificationService.sendToUser(userId, 'Withdrawal Alert', `$${amount} has been withdrawn from your account.`);
+
+    // Check for low balance
+    if (updatedUser.balance < 100) { // Low balance threshold
+      await NotificationService.sendToUser(userId, 'Low Balance Warning', `Your account balance is low: $${updatedUser.balance}. Please top up soon.`);
+    }
+
     return updatedUser.balance;
   }
 

@@ -2,12 +2,14 @@ export interface RegisterDto {
   email: string;
   password: string;
   deviceId: string;
+  pushToken?: string;
 }
 
 export interface LoginDto {
   email: string;
   password: string;
   deviceId: string;
+  pushToken?: string;
 }
 
 export interface UserDto {

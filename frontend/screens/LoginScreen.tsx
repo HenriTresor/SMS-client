@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Alert, StyleSheet } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
-import api, { getDeviceId, setAuthToken } from '../src/services/api';
+import api, { getDeviceId, setAuthToken, getPushToken } from '../src/services/api';
 import { API_ENDPOINTS } from '../src/constants';
 import Button from '../src/components/Button';
 import Input from '../src/components/Input';
@@ -34,7 +34,8 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     setLoading(true);
     try {
       const deviceId = await getDeviceId();
-      const response = await api.post(API_ENDPOINTS.LOGIN, { email, password, deviceId });
+      const pushToken = await getPushToken();
+      const response = await api.post(API_ENDPOINTS.LOGIN, { email, password, deviceId, pushToken });
       const { token, user } = response.data;
       setAuthToken(token);
       navigation.navigate('Dashboard', { user, token });

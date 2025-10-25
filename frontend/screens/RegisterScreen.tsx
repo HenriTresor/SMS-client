@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Alert, StyleSheet } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
-import api, { getDeviceId } from '../src/services/api';
+import api, { getDeviceId, getPushToken } from '../src/services/api';
 import { API_ENDPOINTS } from '../src/constants';
 import Button from '../src/components/Button';
 import Input from '../src/components/Input';
@@ -36,7 +36,8 @@ const RegisterScreen: React.FC<Props> = ({ navigation }) => {
     setLoading(true);
     try {
       const deviceId = await getDeviceId();
-      await api.post(API_ENDPOINTS.REGISTER, { email, password, deviceId });
+      const pushToken = await getPushToken();
+      await api.post(API_ENDPOINTS.REGISTER, { email, password, deviceId, pushToken });
       Alert.alert('Success', 'Registration successful. Wait for admin verification.');
       navigation.navigate('Login');
     } catch (error: any) {

@@ -30,6 +30,7 @@ export class AuthService {
     await prisma.device.create({
       data: {
         deviceId: dto.deviceId,
+        pushToken: dto.pushToken,
         userId: user.id,
       },
     });
@@ -51,6 +52,14 @@ export class AuthService {
     if (!device) throw new Error('Device not registered');
 
     if (!device.isVerified) throw new Error('Device not verified');
+
+    // Update push token if provided
+    if (dto.pushToken && dto.pushToken !== device.pushToken) {
+      await prisma.device.update({
+        where: { id: device.id },
+        data: { pushToken: dto.pushToken },
+      });
+    }
 
     const token = this.generateToken(user.id);
     return { token, user };
