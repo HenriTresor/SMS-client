@@ -13,28 +13,29 @@ function AuthenticatedLayout() {
   const { user, isLoading } = useAuth();
   const pathname = usePathname();
   const colorScheme = useColorScheme();
+  const inAuthGroup = pathname.startsWith('/(auth)');
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  const shouldRedirectToLogin = !user && !inAuthGroup;
+  const shouldRedirectToTabs = user && inAuthGroup;
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      {isLoading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" />
-        </View>
-      )
-
-        : !user && pathname.startsWith('/(tabs)') ? (
-          <Redirect href="/(auth)/login" />
-        )
-          : (
-            <>
-              <Stack>
-                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-              </Stack>
-              <StatusBar style="auto" />
-            </>
-          )}
+      {shouldRedirectToLogin && <Redirect href="/(auth)/login" />}
+      {shouldRedirectToTabs && <Redirect href="/(tabs)" />}
+      <Stack>
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+      </Stack>
+      <StatusBar style="auto" />
     </ThemeProvider>
   );
 }

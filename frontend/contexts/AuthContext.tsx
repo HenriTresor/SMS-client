@@ -1,11 +1,25 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { AppState } from 'react-native';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+  useCallback,
+  useRef,
+} from 'react';
 import { apiClient } from '@/services/apiClient';
 import { AuthContextType, User, LoginData, RegisterData } from '@/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const AUTH_TOKEN_KEY = 'authToken';
+const AUTH_USER_KEY = 'user';
+const AUTH_EXPIRY_KEY = 'authTokenExpiry';
+const SESSION_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -24,28 +38,61 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [balance, setBalanceState] = useState<number | null>(null);
+  const sessionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    loadStoredAuth();
+  const clearSession = useCallback(async () => {
+    if (sessionTimeoutRef.current) {
+      clearTimeout(sessionTimeoutRef.current);
+      sessionTimeoutRef.current = null;
+    }
+
+    await AsyncStorage.multiRemove([AUTH_TOKEN_KEY, AUTH_USER_KEY, AUTH_EXPIRY_KEY]);
+    setToken(null);
+    setUser(null);
+    setBalanceState(null);
   }, []);
 
-  const loadStoredAuth = async () => {
+  const scheduleSessionExpiry = useCallback(async (durationMs: number = SESSION_DURATION_MS) => {
+    if (sessionTimeoutRef.current) {
+      clearTimeout(sessionTimeoutRef.current);
+    }
+
+    const expiryTimestamp = Date.now() + durationMs;
+    await AsyncStorage.setItem(AUTH_EXPIRY_KEY, expiryTimestamp.toString());
+
+    sessionTimeoutRef.current = setTimeout(() => {
+      clearSession().catch((error) => {
+        console.error('Error clearing session on expiry:', error);
+      });
+    }, durationMs);
+  }, [clearSession]);
+
+  const loadStoredAuth = useCallback(async () => {
     try {
-      const [storedToken, storedUser] = await Promise.all([
-        AsyncStorage.getItem('authToken'),
-        AsyncStorage.getItem('user')
+      const [storedToken, storedUser, storedExpiry] = await Promise.all([
+        AsyncStorage.getItem(AUTH_TOKEN_KEY),
+        AsyncStorage.getItem(AUTH_USER_KEY),
+        AsyncStorage.getItem(AUTH_EXPIRY_KEY),
       ]);
 
       if (storedToken && storedUser) {
         try {
           const userData = JSON.parse(storedUser);
-          setToken(storedToken);
-          setUser(userData);
-          setBalanceState(typeof userData.balance === 'number' ? userData.balance : null);
+          const expiryTimestamp = storedExpiry ? parseInt(storedExpiry, 10) : null;
+
+          if (expiryTimestamp && expiryTimestamp > Date.now()) {
+            const remainingTime = expiryTimestamp - Date.now();
+            setToken(storedToken);
+            setUser(userData);
+            setBalanceState(typeof userData.balance === 'number' ? userData.balance : null);
+            await scheduleSessionExpiry(remainingTime);
+          } else {
+            await clearSession();
+          }
         } catch (parseError) {
           console.error('Error parsing stored user data:', parseError);
           // Clear corrupted data
-          await AsyncStorage.multiRemove(['authToken', 'user']);
+          await clearSession();
         }
       }
     } catch (error) {
@@ -53,7 +100,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [clearSession, scheduleSessionExpiry]);
+
+  useEffect(() => {
+    loadStoredAuth();
+
+    const appStateListener = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState !== 'active') {
+        clearSession().catch((error) => {
+          console.error('Error clearing session on app background:', error);
+        });
+      }
+    });
+
+    return () => {
+      appStateListener.remove();
+      if (sessionTimeoutRef.current) {
+        clearTimeout(sessionTimeoutRef.current);
+      }
+    };
+  }, [clearSession, loadStoredAuth]);
 
   const getDeviceId = async (): Promise<string> => {
     try {
@@ -99,8 +165,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       const response = await apiClient.login(data);
 
-      await AsyncStorage.setItem('authToken', response.token);
-      await AsyncStorage.setItem('user', JSON.stringify(response.user));
+      await AsyncStorage.setItem(AUTH_TOKEN_KEY, response.token);
+      await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(response.user));
 
       setToken(response.token);
       setUser(response.user);
@@ -109,6 +175,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       } else {
         setBalanceState(null);
       }
+
+      scheduleSessionExpiry();
     } catch (error) {
       console.error('Login error:', error);
       // Don't set loading to false here, let the finally block handle it
@@ -141,17 +209,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
-      await AsyncStorage.removeItem('authToken');
-      await AsyncStorage.removeItem('user');
-      setToken(null);
-      setUser(null);
-      setBalanceState(null);
+      await clearSession();
     } catch (error) {
       console.error('Logout error:', error);
     }
-  };
+  }, [clearSession]);
 
   const setBalance = useCallback((value: number | null) => {
     if (value === null) {
@@ -166,14 +230,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       }
 
       const updatedUser = { ...prev, balance: value };
-      AsyncStorage.setItem('user', JSON.stringify(updatedUser)).catch((storageError) => {
+      AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(updatedUser)).catch((storageError) => {
         console.error('Error persisting user balance:', storageError);
       });
       return updatedUser;
     });
 
+    scheduleSessionExpiry().catch((error) => {
+      console.error('Error scheduling session from balance update:', error);
+    });
+
     return value;
-  }, []);
+  }, [scheduleSessionExpiry]);
 
   const refreshBalance = useCallback(async () => {
     if (!token) {
@@ -182,12 +250,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     try {
       const balanceResponse = await apiClient.getBalance();
-      return setBalance(balanceResponse.balance);
+      const updatedBalance = setBalance(balanceResponse.balance);
+      scheduleSessionExpiry();
+      return updatedBalance;
     } catch (error) {
       console.error('Error refreshing balance:', error);
       throw error;
     }
-  }, [setBalance, token]);
+  }, [scheduleSessionExpiry, setBalance, token]);
 
   const value: AuthContextType = {
     user,
