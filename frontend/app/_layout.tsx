@@ -1,13 +1,11 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { Redirect, usePathname } from 'expo-router';
+import { Redirect, usePathname, Stack } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 function AuthenticatedLayout() {
   const { user, isLoading } = useAuth();
