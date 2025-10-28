@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,58 +13,51 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Colors } from '@/constants/theme';
 import { Transaction } from '@/types';
-import { NotificationService } from '@/services/notificationService';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card } from '@/components';
 
 export default function DashboardScreen() {
-  const [balance, setBalance] = useState(0);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const { user, refreshBalance } = useAuth();
+  const { user, balance: sharedBalance, logout } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme();
 
-  const loadDashboardData = async () => {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactionsError, setTransactionsError] = useState<string | null>(null);
+  const [transactionsLoading, setTransactionsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadTransactions = useCallback(async () => {
     try {
-      const [balanceResponse, historyResponse] = await Promise.all([
-        apiClient.getBalance(),
-        apiClient.getTransactionHistory(),
-      ]);
-
-      setBalance(balanceResponse.balance);
+      setTransactionsError(null);
+      const historyResponse = await apiClient.getTransactionHistory();
       setTransactions(historyResponse.history);
-
-      // Check for low balance and show notification
-      if (balanceResponse.balance < 10) {
-        await NotificationService.showLowBalanceNotification(balanceResponse.balance);
-      }
     } catch (error) {
-      Alert.alert(
-        'Error',
-        error instanceof Error ? error.message : 'Failed to load dashboard data'
+      setTransactionsError(
+        error instanceof Error ? error.message : 'Failed to load transactions'
       );
     } finally {
-      setIsLoading(false);
+      setTransactionsLoading(false);
+      setRefreshing(false);
     }
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadDashboardData();
-    await refreshBalance();
-    setRefreshing(false);
-  };
-
-  useEffect(() => {
-    loadDashboardData();
   }, []);
 
   useEffect(() => {
-    refreshBalance()
-  }, [refreshBalance])
+    loadTransactions();
+  }, [loadTransactions]);
+
+  const handleLogout = useCallback(() => {
+    Alert.alert('Log out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log out',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          router.replace('/(auth)/login');
+        },
+      },
+    ]);
+  }, [logout, router]);
 
   const formatCurrency = (amount: number) => {
     return `$${amount.toFixed(2)}`;
@@ -74,24 +67,19 @@ export default function DashboardScreen() {
     return new Date(dateString).toLocaleDateString();
   };
 
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: Colors[colorScheme ?? 'light'].text }]}>
-            Loading your dashboard...
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              setTransactionsLoading(true);
+              loadTransactions();
+            }}
+          />
         }
         showsVerticalScrollIndicator={false}
       >
@@ -111,7 +99,7 @@ export default function DashboardScreen() {
               Current Balance
             </Text>
             <Text style={[styles.balanceAmount, { color: Colors[colorScheme ?? 'light'].text }]}>
-              {formatCurrency(balance)}
+              {formatCurrency(sharedBalance ?? 0)}
             </Text>
           </View>
         </Card>
@@ -134,6 +122,12 @@ export default function DashboardScreen() {
               variant="danger"
               style={styles.actionButton}
             />
+            <Button
+              title="Logout"
+              onPress={handleLogout}
+              variant="secondary"
+              style={styles.actionButton}
+            />
           </View>
         </Card>
 
@@ -142,20 +136,26 @@ export default function DashboardScreen() {
           <Text style={[styles.sectionTitle, { color: Colors[colorScheme ?? 'light'].text }]}>
             Recent Transactions
           </Text>
-          {transactions.length === 0 ? (
-            <Text style={[styles.emptyText, { color: Colors[colorScheme ?? 'light'].text + '60' }]}>
-              No transactions yet
+          {transactionsLoading ? (
+            <Text style={[styles.infoText, { color: Colors[colorScheme ?? 'light'].text + '60' }]}>Loading recent transactions…</Text>
+          ) : transactionsError ? (
+            <Text style={[styles.infoText, { color: Colors[colorScheme ?? 'light'].text + '60' }]}>
+              {transactionsError}
             </Text>
+          ) : transactions.length === 0 ? (
+            <Text style={[styles.emptyText, { color: Colors[colorScheme ?? 'light'].text + '60' }]}>No transactions yet</Text>
           ) : (
             transactions.slice(0, 5).map((transaction) => (
               <View key={transaction.id} style={styles.transactionItem}>
                 <View style={styles.transactionLeft}>
-                  <View style={[
-                    styles.transactionIcon,
-                    {
-                      backgroundColor: transaction.type === 'deposit' ? '#28a745' : '#dc3545',
-                    }
-                  ]}>
+                  <View
+                    style={[
+                      styles.transactionIcon,
+                      {
+                        backgroundColor: transaction.type === 'deposit' ? '#28a745' : '#dc3545',
+                      },
+                    ]}
+                  >
                     <Text style={styles.transactionIconText}>
                       {transaction.type === 'deposit' ? '↓' : '↑'}
                     </Text>
@@ -169,12 +169,14 @@ export default function DashboardScreen() {
                     </Text>
                   </View>
                 </View>
-                <Text style={[
-                  styles.transactionAmount,
-                  {
-                    color: transaction.type === 'deposit' ? '#28a745' : '#dc3545',
-                  }
-                ]}>
+                <Text
+                  style={[
+                    styles.transactionAmount,
+                    {
+                      color: transaction.type === 'deposit' ? '#28a745' : '#dc3545',
+                    },
+                  ]}
+                >
                   {transaction.type === 'deposit' ? '+' : '-'}{formatCurrency(transaction.amount)}
                 </Text>
               </View>
@@ -240,8 +242,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
+    flexDirection: 'column',
+    gap: 6,
   },
   actionButton: {
     flex: 1,
@@ -254,6 +256,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     fontStyle: 'italic',
+  },
+  infoText: {
+    textAlign: 'center',
+    fontSize: 16,
   },
   transactionItem: {
     flexDirection: 'row',

@@ -41,17 +41,20 @@ Mobile banking application for customers to manage their savings accounts secure
    npm install
    npm start
    ```
-   Scan the QR code from Expo CLI or run on an emulator.
+   For the fastest feedback loop, install **Expo Go** on your device, scan the QR code printed by the CLI, and test changes instantly. Expo Go respects `EXPO_PUBLIC_API_URL` from your `.env`.
 
 - Optional: run `npm run setup` in `backend/` to install deps and push Prisma schema in one step.
 
 ### Mobile App
 ```bash
-# Start Expo development server
-npm run dev:frontend
+# Start Expo development server (QR code for Expo Go)
+npm start
 
-# Build for production
-npm run build:frontend
+# Optional: Web preview in browser
+npm run web
+
+# Lint source files
+npm run lint
 ```
 
 ## API Documentation
@@ -151,6 +154,18 @@ npm run build
 npm start
 ```
 
+### Native Android Builds
+
+When you need a full native binary (outside Expo Go):
+
+```bash
+# From frontend/
+npm run prebuild      # npx expo prebuild --platform android (run after native config changes)
+npm run android       # builds & installs via expo run:android
+```
+
+Ensure your Android device is connected with USB debugging enabled or an emulator is running. The first build may take several minutes while Gradle downloads dependencies.
+
 ## Mobile App Usage
 
 1. **Registration**: Enter email, password, and device will be automatically registered
@@ -171,34 +186,24 @@ npm start
 
 ## Development Scripts
 
-```bash
-# Setup everything
-npm run setup
+All commands below should be run from the appropriate package directory.
 
-# Development mode
-npm run dev
+- **Backend (`client-app/backend`)**
+  - `npm run dev` – Start the Express API with hot reload (`tsx watch`).
+  - `npm run build` – Compile TypeScript -> `dist/`.
+  - `npm start` – Run the compiled server.
+  - `npm run setup` – Install deps, generate Prisma client, push schema.
+  - `npm run db:generate` / `npm run db:push` / `npm run db:studio` / `npm run db:migrate` – Prisma utilities.
+  - `npm run test` / `npm run test:coverage` / `npm run test:watch` – Jest test suites.
+  - `npm run lint` / `npm run lint:fix` – ESLint checks.
+  - `npm run clean` – Reinstall dependencies and rebuild (uses `rm -rf`, keep on Unix-like shells).
 
-# Build for production
-npm run build
-
-# Clean and rebuild
-npm run clean
-
-# Database operations
-npm run db:generate
-npm run db:push
-npm run db:studio
-
-# Testing
-npm test
-npm run test:coverage
-
-# Docker operations
-npm run docker:build
-npm run docker:up
-npm run docker:down
-npm run docker:logs
-```
+- **Frontend (`client-app/frontend`)**
+  - `npm start` – Expo dev server (best with Expo Go).
+  - `npm run web` – Expo web preview.
+  - `npm run lint` – Expo linting pipeline.
+  - `npm run prebuild` – `expo prebuild --platform android` (generates native Android project).
+  - `npm run android` / `npm run android:native` – Build & install via `expo run:android`.
 
 ## Project Structure
 

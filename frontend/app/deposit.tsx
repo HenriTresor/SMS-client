@@ -20,7 +20,7 @@ export default function DepositScreen() {
   const [errors, setErrors] = useState<{ amount?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  const { refreshBalance } = useAuth();
+  const { setBalance } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme();
 
@@ -52,8 +52,8 @@ export default function DepositScreen() {
       // Show deposit notification
       await NotificationService.showDepositNotification(numAmount);
 
-      // Refresh balance in context
-      await refreshBalance();
+      // Update shared balance context using API response
+      setBalance(response.balance);
 
       Alert.alert(
         'Deposit Successful',

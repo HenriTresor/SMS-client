@@ -11,8 +11,13 @@ import swaggerSpec from './docs/swagger';
 const app = express();
 
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many requests. Please wait a moment before trying again.',
+  },
 });
 
 app.use(helmet());

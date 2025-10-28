@@ -61,8 +61,10 @@ export interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
+  balance: number | null;
+  setBalance: (value: number | null) => number | null;
   login: (data: Omit<LoginData, 'deviceId' | 'pushToken'>) => Promise<void>;
   register: (data: Omit<RegisterData, 'deviceId' | 'pushToken'>) => Promise<void>;
   logout: () => void;
-  refreshBalance: () => Promise<void>;
+  refreshBalance: () => Promise<number | null | undefined>;
 }

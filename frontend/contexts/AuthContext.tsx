@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { apiClient } from '@/services/apiClient';
 import { AuthContextType, User, LoginData, RegisterData } from '@/types';
 
@@ -23,6 +23,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [balance, setBalanceState] = useState<number | null>(null);
 
   useEffect(() => {
     loadStoredAuth();
@@ -40,6 +41,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           const userData = JSON.parse(storedUser);
           setToken(storedToken);
           setUser(userData);
+          setBalanceState(typeof userData.balance === 'number' ? userData.balance : null);
         } catch (parseError) {
           console.error('Error parsing stored user data:', parseError);
           // Clear corrupted data
@@ -102,6 +104,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       setToken(response.token);
       setUser(response.user);
+      if (typeof response.user.balance === 'number') {
+        setBalance(response.user.balance);
+      } else {
+        setBalanceState(null);
+      }
     } catch (error) {
       console.error('Login error:', error);
       // Don't set loading to false here, let the finally block handle it
@@ -140,29 +147,54 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       await AsyncStorage.removeItem('user');
       setToken(null);
       setUser(null);
+      setBalanceState(null);
     } catch (error) {
       console.error('Logout error:', error);
     }
   };
 
-  const refreshBalance = async () => {
-    if (!user || !token) return;
+  const setBalance = useCallback((value: number | null) => {
+    if (value === null) {
+      setBalanceState(null);
+      return null;
+    }
+
+    setBalanceState(value);
+    setUser((prev) => {
+      if (!prev) {
+        return prev;
+      }
+
+      const updatedUser = { ...prev, balance: value };
+      AsyncStorage.setItem('user', JSON.stringify(updatedUser)).catch((storageError) => {
+        console.error('Error persisting user balance:', storageError);
+      });
+      return updatedUser;
+    });
+
+    return value;
+  }, []);
+
+  const refreshBalance = useCallback(async () => {
+    if (!token) {
+      return null;
+    }
 
     try {
       const balanceResponse = await apiClient.getBalance();
-      const updatedUser = { ...user, balance: balanceResponse.balance };
-      setUser(updatedUser);
-      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      return setBalance(balanceResponse.balance);
     } catch (error) {
       console.error('Error refreshing balance:', error);
       throw error;
     }
-  };
+  }, [setBalance, token]);
 
   const value: AuthContextType = {
     user,
     token,
     isLoading,
+    balance,
+    setBalance,
     login,
     register,
     logout,

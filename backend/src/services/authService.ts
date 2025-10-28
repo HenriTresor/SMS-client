@@ -22,20 +22,39 @@ export class AuthService {
 
   static async register(dto: RegisterDto) {
     const hashedPassword = this.hashPassword(dto.password);
-    const user = await prisma.user.create({
-      data: {
-        email: dto.email,
-        password: hashedPassword,
-      },
-    });
-    await prisma.device.create({
-      data: {
-        deviceId: dto.deviceId,
-        pushToken: dto.pushToken!,
-        userId: user.id,
-      },
-    });
-    return user;
+
+    try {
+      const user = await prisma.$transaction(async (tx) => {
+        const createdUser = await tx.user.create({
+          data: {
+            email: dto.email,
+            password: hashedPassword,
+          },
+        });
+
+        await tx.device.create({
+          data: {
+            deviceId: dto.deviceId,
+            pushToken: dto.pushToken ?? null,
+            userId: createdUser.id,
+          },
+        });
+
+        return createdUser;
+      });
+
+      return user;
+    } catch (error: any) {
+      if (error.code === 'P2002' && Array.isArray(error.meta?.target) && error.meta.target.includes('deviceId')) {
+        throw new Error('This device is already linked to an existing account. Please log in or contact support.');
+      }
+
+      if (error.code === 'P2002' && Array.isArray(error.meta?.target) && error.meta.target.includes('email')) {
+        throw new Error('An account with this email already exists.');
+      }
+
+      throw error;
+    }
   }
 
   static async login(dto: LoginDto) {

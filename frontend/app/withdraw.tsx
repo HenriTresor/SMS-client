@@ -17,29 +17,37 @@ import { NotificationService } from '@/services/notificationService';
 
 export default function WithdrawScreen() {
   const [amount, setAmount] = useState('');
-  const [currentBalance, setCurrentBalance] = useState(0);
+  const { balance: sharedBalance, setBalance, refreshBalance } = useAuth();
+  const [currentBalance, setCurrentBalance] = useState(sharedBalance ?? 0);
   const [errors, setErrors] = useState<{ amount?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
-
-  const { user, refreshBalance } = useAuth();
+  const [isLoadingBalance, setIsLoadingBalance] = useState(sharedBalance === null);
   const router = useRouter();
   const colorScheme = useColorScheme();
 
-  const loadBalance = async () => {
-    try {
-      const response = await apiClient.getBalance();
-      setCurrentBalance(response.balance);
-    } catch (error) {
-      console.error('Error loading balance:', error);
-    } finally {
+  useEffect(() => {
+    if (sharedBalance !== null) {
+      setCurrentBalance(sharedBalance);
       setIsLoadingBalance(false);
     }
-  };
+  }, [sharedBalance]);
 
   useEffect(() => {
-    loadBalance();
-  }, []);
+    if (sharedBalance === null) {
+      (async () => {
+        try {
+          const latest = await refreshBalance();
+          if (typeof latest === 'number') {
+            setCurrentBalance(latest);
+          }
+        } catch (error) {
+          console.error('Error refreshing balance:', error);
+        } finally {
+          setIsLoadingBalance(false);
+        }
+      })();
+    }
+  }, [refreshBalance, sharedBalance]);
 
   const validateForm = () => {
     const newErrors: { amount?: string } = {};
@@ -62,11 +70,19 @@ export default function WithdrawScreen() {
   const handleWithdraw = async () => {
     if (!validateForm()) return;
 
-    // Double-check balance before proceeding
-    await loadBalance();
+    let latestBalance = currentBalance;
+    try {
+      const refreshed = await refreshBalance();
+      if (typeof refreshed === 'number') {
+        latestBalance = refreshed;
+        setCurrentBalance(refreshed);
+      }
+    } catch (error) {
+      console.error('Error refreshing balance before withdrawal:', error);
+    }
 
     const numAmount = parseFloat(amount);
-    if (numAmount > currentBalance) {
+    if (numAmount > latestBalance) {
       Alert.alert('Insufficient Balance', `Your current balance is $${currentBalance.toFixed(2)}.`);
       return;
     }
@@ -84,8 +100,9 @@ export default function WithdrawScreen() {
         await NotificationService.showLowBalanceNotification(response.balance);
       }
 
-      // Refresh balance in context
-      await refreshBalance();
+      // Update shared balance context
+      setBalance(response.balance);
+      setCurrentBalance(response.balance);
 
       Alert.alert(
         'Withdrawal Successful',

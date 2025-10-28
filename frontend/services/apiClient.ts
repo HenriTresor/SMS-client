@@ -23,9 +23,39 @@ class ApiClient {
 
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-      const error: ApiError = await response.json().catch(() => ({ error: 'Network error' }));
-      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      let errorMessage = `Request failed with status ${response.status}`;
+      let parsedBody: ApiError | { message?: string } | string | null = null;
+
+      const contentType = response.headers.get('content-type') ?? '';
+      try {
+        if (contentType.includes('application/json')) {
+          parsedBody = await response.json();
+        } else {
+          parsedBody = await response.text();
+        }
+      } catch (parseError) {
+        parsedBody = null;
+      }
+
+      if (parsedBody && typeof parsedBody === 'object') {
+        const candidate = (parsedBody as ApiError).error || (parsedBody as { message?: string }).message;
+        if (candidate) {
+          errorMessage = candidate;
+        }
+      } else if (typeof parsedBody === 'string' && parsedBody.trim().length > 0) {
+        errorMessage = parsedBody;
+      }
+
+      if (response.status === 429 && (!parsedBody || typeof parsedBody === 'string')) {
+        errorMessage = 'Too many requests. Please wait a moment before trying again.';
+      }
+
+      const error = new Error(errorMessage);
+      (error as Error & { status?: number; details?: unknown }).status = response.status;
+      (error as Error & { status?: number; details?: unknown }).details = parsedBody;
+      throw error;
     }
+
     return response.json();
   }
 

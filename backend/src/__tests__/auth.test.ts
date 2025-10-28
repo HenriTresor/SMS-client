@@ -44,7 +44,9 @@ describe('Auth routes', () => {
         balance: 100,
       },
     };
-    const loginSpy = jest.spyOn(AuthService, 'login').mockResolvedValue(authResponse as any);
+    const loginSpy = jest
+      .spyOn(AuthService as unknown as { login: typeof AuthService.login }, 'login')
+      .mockResolvedValue(authResponse as any);
 
     const res = await request(app)
       .post('/auth/login')
@@ -60,7 +62,9 @@ describe('Auth routes', () => {
   });
 
   it('returns 401 when login fails', async () => {
-    jest.spyOn(AuthService, 'login').mockRejectedValue(new Error('Invalid password'));
+    jest
+      .spyOn(AuthService as unknown as { login: typeof AuthService.login }, 'login')
+      .mockRejectedValue(new Error('Invalid password'));
 
     const res = await request(app)
       .post('/auth/login')
