@@ -16,6 +16,8 @@ WORKDIR /usr/src/app
 
 ENV NODE_ENV=production
 
+RUN apk add --no-cache openssl
+
 COPY --from=base /usr/src/app/node_modules ./node_modules
 COPY --from=base /usr/src/app/dist ./dist
 COPY package*.json ./

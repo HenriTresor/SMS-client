@@ -9,6 +9,7 @@ Mobile banking application for customers to manage their savings accounts secure
 - 📱 **Push Notifications**: Receive alerts for transactions and account activities
 - 📊 **Transaction History**: View detailed transaction history with filtering
 - 🔄 **Real-time Updates**: Pull-to-refresh for latest account information
+- ⏳ **Secure Sessions**: Automatic logout on app close or after 30 minutes of inactivity
 
 ## Tech Stack
 
@@ -43,21 +44,22 @@ Mobile banking application for customers to manage their savings accounts secure
    ```
    For the fastest feedback loop, install **Expo Go** on your device, scan the QR code printed by the CLI, and test changes instantly. Expo Go respects `EXPO_PUBLIC_API_URL` from your `.env`.
 
-- Optional: run `npm run setup` in `backend/` to install deps and push Prisma schema in one step.
+### Running on devices
 
-### Mobile App
 ```bash
-# Start Expo development server (QR code for Expo Go)
+# Expo Go (recommended during development)
 npm start
 
-# Optional: Web preview in browser
-npm run web
-
-# Lint source files
-npm run lint
+# Native binary with Expo prebuild (when you need device-specific modules or a signed APK/AAB)
+npm run prebuild   # generates android/ via expo prebuild --platform android
+npm run android:native
 ```
 
-## API Documentation
+> Tip: set `EXPO_DEV_SERVER_PORT` when you need Metro on a custom port, e.g. `EXPO_DEV_SERVER_PORT=19002 npm run android:native`.
+
+- Optional: run `npm run setup` in `backend/` to install deps and push Prisma schema in one step.
+
+### API Documentation
 
 - **Swagger/OpenAPI**: Served from [`http://localhost:3000/docs`](http://localhost:3000/docs) while the backend is running. Export the schema via `/docs.json` if you want to share with other tools.
 - **Postman / Requestly Collection**: Maintain a collection (suggested path `docs/postman/client-api.postman_collection.json`) mirroring the endpoints listed below.
@@ -83,14 +85,22 @@ npm run lint
 
 ## Environment Variables
 
-Create a `.env` file in the backend directory:
+- `backend/.env` – copy from the root `.env.example` in this repo (or create one) and set:
 
-```env
-DATABASE_URL="postgresql://username:password@localhost:5432/credit_jambo"
-JWT_SECRET="your-super-secure-jwt-secret-here"
-PORT=3000
-EXPO_ACCESS_TOKEN="your-expo-access-token-for-push-notifications"
-```
+  ```env
+  DATABASE_URL="postgresql://username:password@localhost:5432/credit_jambo"
+  JWT_SECRET="your-super-secure-jwt-secret-here"
+  PORT=3000
+  EXPO_ACCESS_TOKEN="your-expo-access-token-for-push-notifications"
+  ```
+
+- `frontend/.env` – copy from `frontend/.env.example` and point the mobile app at a reachable URL:
+
+  ```env
+  EXPO_PUBLIC_API_URL="http://YOUR_LAN_IP:3000"
+  ```
+
+  Use your machine's LAN IP when testing on physical devices so they can reach the API.
 
 ## Database Setup
 
@@ -247,7 +257,7 @@ client-app/
 ## Assumptions & Notes
 
 - Backend base URL is supplied via `EXPO_PUBLIC_API_URL`; set it to a host reachable from your device (e.g., LAN IP or tunnel).
-- Expo Go has limited push-notification support. To test notifications end-to-end, build with EAS/dev clients.
+- Expo Go has limited push-notification support. To test notifications end-to-end, run prebuild command.
 
 ## License
 
