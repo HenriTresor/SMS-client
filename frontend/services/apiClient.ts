@@ -10,7 +10,7 @@ import {
   ApiError,
 } from '../types';
 
-const API_BASE_URL = 'http://localhost:3000'; // Update this for production
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000'; // Update this for production
 
 class ApiClient {
   private async getAuthHeaders(): Promise<{ [key: string]: string }> {

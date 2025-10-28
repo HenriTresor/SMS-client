@@ -5,8 +5,10 @@ export const validate = (schema: Joi.ObjectSchema, property: 'body' | 'params' |
   return (req: Request, res: Response, next: NextFunction) => {
     const { error } = schema.validate(req[property]);
     if (error) {
-      return res.status(400).json({ error: error.details?.[0]?.message || 'Validation error' });
+      res.status(400).json({ error: error.details?.[0]?.message || 'Validation error' });
+      return;
     }
+
     next();
   };
 };

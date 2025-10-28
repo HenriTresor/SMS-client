@@ -62,6 +62,10 @@ export default function DashboardScreen() {
     loadDashboardData();
   }, []);
 
+  useEffect(() => {
+    refreshBalance()
+  }, [refreshBalance])
+
   const formatCurrency = (amount: number) => {
     return `$${amount.toFixed(2)}`;
   };

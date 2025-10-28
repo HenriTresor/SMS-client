@@ -8,15 +8,18 @@ export interface AuthRequest extends Request {
 }
 
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
+  const secret = process.env.JWT_SECRET || 'secret';
   const token = req.header('Authorization')?.replace('Bearer ', '');
   if (!token) {
-    return res.status(401).json({ error: 'Access denied' });
+    res.status(401).json({ error: 'Access denied' });
+    return;
   }
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    const decoded = jwt.verify(token, secret) as { userId: string };
     req.userId = decoded.userId;
     next();
   } catch (error) {
     res.status(401).json({ error: 'Invalid token' });
+    return;
   }
 };

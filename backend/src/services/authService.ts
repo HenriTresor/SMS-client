@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { RegisterDto, LoginDto } from '../dtos';
+import { NotificationService } from './notificationService';
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
@@ -62,6 +63,13 @@ export class AuthService {
     }
 
     const token = this.generateToken(user.id);
+
+    try {
+      await NotificationService.sendToUser(user.id, 'Login Successful', 'You have successfully logged in.');
+    } catch (error) {
+      console.error('Error sending login notification:', error);
+    }
+
     return { token, user };
   }
 }

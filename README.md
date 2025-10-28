@@ -26,17 +26,24 @@ Mobile banking application for customers to manage their savings accounts secure
 - Expo CLI (`npm install -g @expo/cli`)
 
 ### Setup
-```bash
-# Install all dependencies
-npm run setup
 
-# Start development servers
-npm run dev
-```
+1. **Backend API (Terminal 1)**
+   ```bash
+   cd backend
+   npm install
+   npm run dev
+   ```
+   The API is available at `http://localhost:3000`.
 
-This will start:
-- Backend API on port 3000
-- Expo development server for mobile app
+2. **Expo mobile app (Terminal 2)**
+   ```bash
+   cd frontend
+   npm install
+   npm start
+   ```
+   Scan the QR code from Expo CLI or run on an emulator.
+
+- Optional: run `npm run setup` in `backend/` to install deps and push Prisma schema in one step.
 
 ### Mobile App
 ```bash
@@ -46,6 +53,18 @@ npm run dev:frontend
 # Build for production
 npm run build:frontend
 ```
+
+## API Documentation
+
+- **Swagger/OpenAPI**: Served from [`http://localhost:3000/docs`](http://localhost:3000/docs) while the backend is running. Export the schema via `/docs.json` if you want to share with other tools.
+- **Postman / Requestly Collection**: Maintain a collection (suggested path `docs/postman/client-api.postman_collection.json`) mirroring the endpoints listed below.
+- Capture responses for typical scenarios (success, validation errors, auth failures) to help mobile QA.
+
+### Quick Postman Checklist
+1. Set `{{baseUrl}}` to `http://localhost:3000` (or your tunnel/LAN URL).
+2. Create `POST /auth/register` and `POST /auth/login` requests for the full auth flow.
+3. Add an environment variable for the JWT (`{{authToken}}`) and use Postman scripts to reuse it.
+4. Sync the collection to your team workspace and commit changes alongside backend updates.
 
 ## API Endpoints
 
@@ -64,7 +83,7 @@ npm run build:frontend
 Create a `.env` file in the backend directory:
 
 ```env
-DATABASE_URL="postgresql://username:password@localhost:5432/credit_jambo_client"
+DATABASE_URL="postgresql://username:password@localhost:5432/credit_jambo"
 JWT_SECRET="your-super-secure-jwt-secret-here"
 PORT=3000
 EXPO_ACCESS_TOKEN="your-expo-access-token-for-push-notifications"
@@ -93,30 +112,43 @@ npm test
 npm run test:coverage
 ```
 
+The Jest + Supertest suites cover both authentication (`/auth/register`, `/auth/login`) and savings routes (`/savings/balance`, `/savings/deposit`, `/savings/withdraw`, `/savings/history`) using mocked services. When adding new specs that require JWTs, set `process.env.JWT_SECRET` within the test harness so issued tokens match middleware expectations.
+
 ## Production Deployment
 
 ### Docker Deployment
 ```bash
-# Build and start services
-npm run deploy
+# Build and start services (database + backend)
+docker-compose up --build -d
 
-# View logs
-npm run docker:logs
+# Follow backend logs
+docker-compose logs -f backend
 
-# Stop services
-npm run stop
+# Stop and remove containers
+docker-compose down
 ```
+
+Populate a `.env` file next to `docker-compose.yml` to override defaults:
+
+```env
+CLIENT_DB_NAME=credit_jambo
+CLIENT_DB_USER=postgres
+CLIENT_DB_PASSWORD=postgres
+CLIENT_DB_PORT=5434
+CLIENT_DATABASE_URL=postgresql://postgres:postgres@db:5432/credit_jambo
+CLIENT_JWT_SECRET=changeme
+CLIENT_BACKEND_PORT=3000
+```
+
+Anything omitted falls back to the compose defaults.
 
 ### Manual Deployment
 ```bash
-# Build backend
-npm run build:backend
-
-# Build mobile app
-npm run build:frontend
+# Transpile backend
+npm run build
 
 # Start backend
-npm run start:backend
+npm start
 ```
 
 ## Mobile App Usage
@@ -200,6 +232,17 @@ client-app/
 3. Use conventional commit messages
 4. Test on both iOS and Android
 5. Update documentation for API changes
+
+## Coding Style
+
+- React Native + TypeScript with Expo Router conventions.
+- ESLint configuration lives under `frontend/.eslintrc`; run `npm run lint` before committing.
+- Keep component files focused (UI logic in `components/`, network logic in `services/`).
+
+## Assumptions & Notes
+
+- Backend base URL is supplied via `EXPO_PUBLIC_API_URL`; set it to a host reachable from your device (e.g., LAN IP or tunnel).
+- Expo Go has limited push-notification support. To test notifications end-to-end, build with EAS/dev clients.
 
 ## License
 

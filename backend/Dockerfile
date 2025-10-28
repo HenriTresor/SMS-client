@@ -1,35 +1,29 @@
-# Use Node.js 18 LTS
-FROM node:18-alpine
+FROM node:20-alpine AS base
+WORKDIR /usr/src/app
 
-# Set working directory
-WORKDIR /app
-
-# Copy package files
+# Install dependencies first
 COPY package*.json ./
+COPY prisma ./prisma
+RUN npm install
 
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
+# Copy source and build
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+# Final runtime image
+FROM node:20-alpine AS runtime
+WORKDIR /usr/src/app
 
-# Change ownership of app directory
-RUN chown -R nodejs:nodejs /app
-USER nodejs
+ENV NODE_ENV=production
 
-# Expose port
+COPY --from=base /usr/src/app/node_modules ./node_modules
+COPY --from=base /usr/src/app/dist ./dist
+COPY package*.json ./
+COPY prisma ./prisma
+
+# Remove dev dependencies to keep runtime lean
+RUN npm prune --omit=dev
+
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/ || exit 1
-
-# Start the application
-CMD ["npm", "start"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
